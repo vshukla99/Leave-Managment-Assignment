@@ -8,7 +8,9 @@ export default function Users() {
   const [error, setError] = useState<string | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editData, setEditData] = useState<Partial<Pick<User, "fullName" | "mobile" | "role">>>({});
+  const [editData, setEditData] = useState<
+    Partial<Pick<User, "fullName" | "mobile" | "role">>
+  >({});
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -25,26 +27,53 @@ export default function Users() {
     fetchUsers();
   }, []);
 
-  const handleSelect = useCallback((id: number, checked: boolean) => {
-    setSelectedUsers((prev) =>
-      checked ? [...prev, id] : prev.filter((u) => u !== id)
-    );
-  }, []);
+  // Prevent selecting ADMIN users
+  const handleSelect = useCallback(
+    (id: number, checked: boolean) => {
+      const user = users.find((u) => u.id === id);
+      if (user?.role === "ADMIN") return;
 
-  const handleSelectAll = useCallback(
-    (checked: boolean) => {
-      setSelectedUsers(checked ? users.map((u) => u.id) : []);
+      setSelectedUsers((prev) =>
+        checked ? [...prev, id] : prev.filter((u) => u !== id)
+      );
     },
     [users]
   );
 
+  // Select all except ADMIN
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (!checked) {
+        setSelectedUsers([]);
+        return;
+      }
+
+      setSelectedUsers(users.filter((u) => u.role !== "ADMIN").map((u) => u.id));
+    },
+    [users]
+  );
+
+  // Delete only non-admin users
   const handleDeleteSelected = useCallback(async () => {
     if (!selectedUsers.length) return;
-    if (!confirm(`Are you sure you want to delete ${selectedUsers.length} user(s)?`)) return;
+
+    const deletableIds = users
+      .filter((u) => selectedUsers.includes(u.id) && u.role !== "ADMIN")
+      .map((u) => u.id);
+
+    if (!deletableIds.length) {
+      alert("Admin users cannot be deleted.");
+      return;
+    }
+
+    if (
+      !confirm(`Are you sure you want to delete ${deletableIds.length} user(s)?`)
+    )
+      return;
 
     try {
-      await Promise.all(selectedUsers.map((id) => deleteUser(id)));
-      setUsers(users.filter((u) => !selectedUsers.includes(u.id)));
+      await Promise.all(deletableIds.map((id) => deleteUser(id)));
+      setUsers((prev) => prev.filter((u) => !deletableIds.includes(u.id)));
       setSelectedUsers([]);
     } catch (err) {
       console.error(err);
@@ -54,7 +83,11 @@ export default function Users() {
 
   const startEdit = useCallback((user: User) => {
     setEditingUser(user);
-    setEditData({ fullName: user.fullName, mobile: user.mobile, role: user.role });
+    setEditData({
+      fullName: user.fullName,
+      mobile: user.mobile,
+      role: user.role,
+    });
   }, []);
 
   const handleEditChange = useCallback(
@@ -66,10 +99,13 @@ export default function Users() {
 
   const saveEdit = useCallback(async () => {
     if (!editingUser) return;
+
     try {
       await updateUserByAdmin(editingUser.id, editData);
       setUsers((prev) =>
-        prev.map((u) => (u.id === editingUser.id ? { ...u, ...editData } : u))
+        prev.map((u) =>
+          u.id === editingUser.id ? { ...u, ...editData } : u
+        )
       );
       setEditingUser(null);
     } catch (err) {
@@ -78,10 +114,13 @@ export default function Users() {
     }
   }, [editingUser, editData]);
 
-  const allSelected = useMemo(() => users.length > 0 && selectedUsers.length === users.length, [
-    users,
-    selectedUsers,
-  ]);
+  const allSelected = useMemo(() => {
+    const deletableUsers = users.filter((u) => u.role !== "ADMIN");
+    return (
+      deletableUsers.length > 0 &&
+      selectedUsers.length === deletableUsers.length
+    );
+  }, [users, selectedUsers]);
 
   if (loading) return <p>Loading users...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
@@ -93,7 +132,7 @@ export default function Users() {
 
       {selectedUsers.length > 0 && (
         <button
-          className="mb-4 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+          className="mb-4 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
           onClick={handleDeleteSelected}
         >
           Delete Selected ({selectedUsers.length})
@@ -101,7 +140,7 @@ export default function Users() {
       )}
 
       <div className="overflow-x-auto shadow-lg rounded-lg">
-        <table className="min-w-full bg-white rounded-lg overflow-hidden">
+        <table className="min-w-full bg-white">
           <thead className="bg-gray-800 text-white">
             <tr>
               <th className="p-3">
@@ -109,7 +148,6 @@ export default function Users() {
                   type="checkbox"
                   checked={allSelected}
                   onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="w-5 h-5"
                 />
               </th>
               <th className="p-3 text-left">ID</th>
@@ -117,56 +155,64 @@ export default function Users() {
               <th className="p-3 text-left">Email</th>
               <th className="p-3 text-left">Mobile</th>
               <th className="p-3 text-left">Role</th>
-              <th className="p-3 text-left">Created At</th>
+              <th className="p-3 text-left">Created</th>
               <th className="p-3 text-left">Actions</th>
             </tr>
           </thead>
-          <tbody className="text-gray-700">
+
+          <tbody>
             {users.map((u) => (
-              <tr
-                key={u.id}
-                className="hover:bg-indigo-50 transition border-b last:border-none"
-              >
+              <tr key={u.id} className="border-b hover:bg-indigo-50">
                 <td className="p-3">
                   <input
                     type="checkbox"
+                    disabled={u.role === "ADMIN"}
                     checked={selectedUsers.includes(u.id)}
                     onChange={(e) => handleSelect(u.id, e.target.checked)}
-                    className="w-4 h-4"
+                    className="disabled:opacity-50"
                   />
                 </td>
-                <td className="p-3 font-medium">{u.id}</td>
+
+                <td className="p-3">{u.id}</td>
+
                 <td className="p-3">
                   {editingUser?.id === u.id ? (
                     <input
-                      type="text"
                       value={editData.fullName ?? ""}
-                      onChange={(e) => handleEditChange("fullName", e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 w-full"
+                      onChange={(e) =>
+                        handleEditChange("fullName", e.target.value)
+                      }
+                      className="border rounded px-2 py-1 w-full"
                     />
                   ) : (
                     u.fullName
                   )}
                 </td>
+
                 <td className="p-3">{u.email}</td>
+
                 <td className="p-3">
                   {editingUser?.id === u.id ? (
                     <input
-                      type="text"
                       value={editData.mobile ?? ""}
-                      onChange={(e) => handleEditChange("mobile", e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 w-full"
+                      onChange={(e) =>
+                        handleEditChange("mobile", e.target.value)
+                      }
+                      className="border rounded px-2 py-1 w-full"
                     />
                   ) : (
                     u.mobile
                   )}
                 </td>
+
                 <td className="p-3">
                   {editingUser?.id === u.id ? (
                     <select
                       value={editData.role ?? "USER"}
-                      onChange={(e) => handleEditChange("role", e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 w-full"
+                      onChange={(e) =>
+                        handleEditChange("role", e.target.value)
+                      }
+                      className="border rounded px-2 py-1"
                     >
                       <option value="USER">USER</option>
                       <option value="ADMIN">ADMIN</option>
@@ -174,26 +220,34 @@ export default function Users() {
                   ) : (
                     <span
                       className={`px-2 py-1 rounded ${
-                        u.role === "ADMIN" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
+                        u.role === "ADMIN"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
                       }`}
                     >
                       {u.role}
                     </span>
                   )}
                 </td>
-                <td className="p-3">{u.createdAt ? new Date(u.createdAt).toLocaleString() : "N/A"}</td>
+
+                <td className="p-3">
+                  {u.createdAt
+                    ? new Date(u.createdAt).toLocaleString()
+                    : "N/A"}
+                </td>
+
                 <td className="p-3">
                   {editingUser?.id === u.id ? (
-                    <div className="flex space-x-2">
+                    <div className="flex gap-2">
                       <button
-                        className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition"
                         onClick={saveEdit}
+                        className="px-3 py-1 bg-green-500 text-white rounded"
                       >
                         Save
                       </button>
                       <button
-                        className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 transition"
                         onClick={() => setEditingUser(null)}
+                        className="px-3 py-1 bg-gray-300 rounded"
                       >
                         Cancel
                       </button>
@@ -205,7 +259,7 @@ export default function Users() {
                         e.preventDefault();
                         startEdit(u);
                       }}
-                      className="text-indigo-600 hover:text-indigo-800 font-medium transition"
+                      className="text-indigo-600 hover:text-indigo-800"
                     >
                       Edit
                     </a>
