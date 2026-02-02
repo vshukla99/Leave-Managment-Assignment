@@ -33,7 +33,7 @@ export async function requestLeaveService(
     fromDate: string;
     toDate: string;
     hoursRequested: number;
-    reason: string; // ✅ REQUIRED
+    reason: string; // REQUIRED
   }
 ) {
   const { fromDate, toDate, hoursRequested, reason } = payload;
@@ -229,4 +229,31 @@ export async function restoreLeaveFIFO(
   if (remaining > 0) {
     throw new AppError("Restore overflow detected", 500);
   }
+}
+
+
+/**
+ * ================================
+ * CRON: Expire unused leave credits
+ * ================================
+ */
+export async function expireLeaveCreditsService(
+  now: Date = new Date()
+) {
+  const expiredCredits = await prisma.leaveCredit.findMany({
+    where: {
+      expiresAt: { lt: now },
+      hoursRemaining: { gt: 0 },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const credit of expiredCredits) {
+    await prisma.leaveCredit.update({
+      where: { id: credit.id },
+      data: { hoursRemaining: 0 },
+    });
+  }
+
+  return expiredCredits.length;
 }
