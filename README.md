@@ -93,7 +93,7 @@ Swagger UI is available once the backend is running.
 Open in browser:
 
 ```
-http://localhost:4000/api-docs
+http://localhost:4000/api/docs/
 ```
 
 ---
