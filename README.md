@@ -86,6 +86,18 @@ http://localhost:4000
 
 ---
 
+## 📑 API Documentation (Swagger)
+
+Swagger UI is available once the backend is running.
+
+Open in browser:
+
+```
+http://localhost:4000/api-docs
+```
+
+---
+
 ## 🔐 Admin Setup (Important)
 
 After user registration, **all users are created with role `USER` by default**.
@@ -122,12 +134,6 @@ role = ADMIN
 ```bash
 cd frontend
 npm install
-```
-
-Create a `.env` file inside `frontend/`:
-
-```
-VITE_API_URL=http://localhost:4000/api
 ```
 
 ---
@@ -174,9 +180,15 @@ http://localhost:5173
 
 ---
 
+## 📌 Future Improvements
+
+* Refresh token support
+* Email notifications
+* Approval workflow with comments
+* Dashboard analytics
 
 ---
 
 ## 👨‍💻 Author
 
-Developed: Vikash Shukla
+Developed as a full‑stack Leave Management System project.
