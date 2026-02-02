@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  fullName      String
+  mobile        String         @unique
+  email         String         @unique
+  password      String
+  role          Role           @default(USER)
+  createdAt     DateTime       @default(now())
+
+  leaveCredits  LeaveCredit[]
+  leaveRequests LeaveRequest[]
+}
+
+model LeaveCredit {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  hoursGranted   Int
+  hoursRemaining Int
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  //  FIFO + user lookup
+  @@index([userId, createdAt])
+
+  // Expiration cron job
+  @@index([expiresAt])
+
+  //  User balance fetch
+  @@index([userId])
+}
+
+model LeaveRequest {
+  id             Int         @id @default(autoincrement())
+  userId         Int
+  hoursRequested Int
+  fromDate       DateTime
+  toDate         DateTime
+  reason         String
+  status         LeaveStatus @default(PENDING)
+  createdAt      DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([fromDate, toDate])
+  @@index([status])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
