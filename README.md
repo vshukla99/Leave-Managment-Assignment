@@ -174,15 +174,9 @@ http://localhost:5173
 
 ---
 
-## 📌 Future Improvements
-
-* Refresh token support
-* Email notifications
-* Approval workflow with comments
-* Dashboard analytics
 
 ---
 
 ## 👨‍💻 Author
 
-Developed as a full‑stack Leave Management System project.
+Developed: Vikash Shukla
